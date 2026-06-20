@@ -1,0 +1,1283 @@
+# =============================================================================
+# THE FORGOTTEN KEY
+# A gothic mystery adventure demonstrating ALL engine features.
+#
+# Feature showcase:
+#   - Rich variable metadata (bar, boolean, number display types)
+#   - Multiple variable categories on the Character Sheet
+#   - All condition operators: gte, lte, gt, lt, eq, ne, boolean checks
+#   - All effect types: set, increment, decrement, toggle
+#   - Per-node background music references (files optional)
+#   - Per-node entry sound effects (files optional)
+#   - Per-choice sound effects (files optional)
+#   - 4 distinct endings based on accumulated choices
+#   - Choices that gate access to entire story branches
+#   - Converging paths (multiple routes into the hidden vault)
+#   - Hidden tracking variables (invisible on character sheet)
+# =============================================================================
+
+meta:
+  id: the_forgotten_key
+  title: "The Forgotten Key"
+  author: "Adventure Engine Demo"
+  version: "1.0"
+  description: >
+    A Victorian gothic mystery. Retrieve the Blackwood family heirloom
+    from the depths of Ravenstone Manor — by charm, coin, cunning, or courage.
+  start_node: arrival
+  cover_image: cover.png
+
+
+# =============================================================================
+# VARIABLES
+# The engine supports two declaration styles:
+#
+#   Simple:   coins: 15          (bare value; label inferred from key name)
+#   Rich:     coins:             (full metadata block for the Character Sheet)
+#               value: 15
+#               label: "Shillings"
+#               ...
+# =============================================================================
+
+variables:
+
+  # ── Stats (displayed as progress bars) ──────────────────────────────────────
+  reputation:
+    value: 0
+    label: "Reputation"
+    description: "Your standing among the nobility. High reputation opens doors; low reputation closes them."
+    icon: "⭐"
+    category: "Stats"
+    visible: true
+    display_type: bar      # renders as a filled progress bar
+    min_value: -5
+    max_value: 10
+
+  charisma:
+    value: 1
+    label: "Charisma"
+    description: "Your natural gift for persuasion and charm."
+    icon: "✨"
+    category: "Stats"
+    visible: true
+    display_type: bar
+    min_value: 0
+    max_value: 5
+
+  cunning:
+    value: 0
+    label: "Cunning"
+    description: "Your skill in stealth, deception, and reading people."
+    icon: "🎭"
+    category: "Stats"
+    visible: true
+    display_type: bar
+    min_value: 0
+    max_value: 5
+
+  # ── Resources (displayed as plain numbers) ───────────────────────────────────
+  coins:
+    value: 15
+    label: "Shillings"
+    description: "Your available coin. Useful for bribes."
+    icon: "💰"
+    category: "Resources"
+    visible: true
+    display_type: number
+
+  # ── Relationships (displayed as progress bars) ───────────────────────────────
+  butler_trust:
+    value: 0
+    label: "Butler's Trust"
+    description: "Reginald's faith in your good intentions."
+    icon: "🤝"
+    category: "Relationships"
+    visible: true
+    display_type: bar
+    min_value: -3
+    max_value: 5
+
+  lord_favor:
+    value: 0
+    label: "Lord's Favour"
+    description: "Lord Hargrove's opinion of you."
+    icon: "👑"
+    category: "Relationships"
+    visible: true
+    display_type: bar
+    min_value: -5
+    max_value: 5
+
+  # ── Inventory (displayed as boolean: Acquired / Not yet) ─────────────────────
+  has_lantern:
+    value: false
+    label: "Oil Lantern"
+    description: "A reliable source of light for dark places."
+    icon: "🏮"
+    category: "Inventory"
+    visible: true
+    display_type: boolean
+
+  has_manor_map:
+    value: false
+    label: "Manor Map"
+    description: "A detailed map of Ravenstone Manor's hidden passages."
+    icon: "🗺️"
+    category: "Inventory"
+    visible: true
+    display_type: boolean
+
+  has_skeleton_key:
+    value: false
+    label: "Skeleton Key"
+    description: "A master key that opens most locked doors."
+    icon: "🗝️"
+    category: "Inventory"
+    visible: true
+    display_type: boolean
+
+  has_the_key:
+    value: false
+    label: "The Forgotten Key"
+    description: "The golden Blackwood family heirloom — the object of your quest."
+    icon: "✨"
+    category: "Inventory"
+    visible: true
+    display_type: boolean
+
+  # ── Hidden tracking variables (visible: false = not shown on Character Sheet) ─
+  snuck_in:
+    value: false
+    visible: false
+
+  bribed_reginald:
+    value: false
+    visible: false
+
+  visited_vault:
+    value: false
+    visible: false
+
+  confronted_lord:
+    value: false
+    visible: false
+
+  cracked_puzzle:
+    value: false
+    visible: false
+
+
+# =============================================================================
+# NODES
+# =============================================================================
+
+nodes:
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ACT I — ARRIVAL
+  # ────────────────────────────────────────────────────────────────────────────
+
+  arrival:
+    title: "Ravenstone Manor"
+    # Per-node ambient music (file path relative to this story folder).
+    # If the file is missing the engine skips it gracefully.
+    music: music/arrival_ambient.mp3
+    sfx: sfx/door_open.wav
+    text: |
+      The hansom cab deposits you on a cobblestone lane as a pewter dusk
+      settles over the moors. Before you rises Ravenstone Manor — a hulking
+      Victorian pile of wet granite, every window dark save one guttering
+      candle on the third floor.
+
+      You are Edmund Blackwood's private detective, here to retrieve
+      the Forgotten Key: a golden heirloom stolen from the family crypt
+      and now, by all accounts, in the possession of Lord Hargrove.
+
+      The iron gate stands before you. A bronze plaque reads:
+      RAVENSTONE — By Appointment Only.
+
+    choices:
+      - text: "Ring the bell and announce yourself properly."
+        next: announce_arrival
+        # Effects can grant stats, add to rep, set booleans, etc.
+        effects:
+          - increment: { reputation: 1 }
+
+      - text: "Study the perimeter wall for a way to sneak in."
+        next: sneak_survey
+        effects:
+          - increment: { cunning: 1 }
+
+      - text: "Call out to anyone who might hear through the bars."
+        next: shout_arrival
+
+  # ── Announce yourself ──────────────────────────────────────────────────────
+  announce_arrival:
+    title: "The Gatehouse"
+    music: music/arrival_ambient.mp3
+    text: |
+      You pull the heavy bell-pull. Its clang echoes across the grounds.
+      After a long moment, a lamp bobs towards you through the dark garden.
+
+      The gate swings open, revealing a tall butler in black livery.
+      His face is carved from the same stone as the manor: immovable,
+      watchful, but not unkind.
+
+      "Good evening," he says. "I am Reginald. The manor was not
+      expecting visitors. May I ask your business?"
+
+      His eyes drop briefly to your calling card and then rise again —
+      measuring you with the precision of a fine set of scales.
+
+    choices:
+      - text: "Present your credentials as a private detective."
+        next: entrance_hall
+        effects:
+          - increment: { butler_trust: 1 }
+
+      - text: "Claim you are a distant relative of the Blackwoods."
+        next: entrance_hall
+        # Requires charisma >= 1 to be convincing; otherwise it backfires.
+        conditions:
+          - require: { charisma: { gte: 1 } }
+        effects:
+          - increment: { butler_trust: 2 }
+          - increment: { reputation: 1 }
+
+      - text: "Insist you have urgent business with Lord Hargrove himself."
+        next: entrance_hall
+        effects:
+          - decrement: { butler_trust: 1 }
+
+  # ── Shout arrival ──────────────────────────────────────────────────────────
+  shout_arrival:
+    title: "The Gatehouse"
+    music: music/arrival_ambient.mp3
+    text: |
+      "Hallo! Is anyone there?"
+
+      Your voice bounces off the wet stone. Two crows launch from a
+      chimney pot. Eventually a light appears — Reginald, the butler,
+      approaches with a lantern and a look of weary patience.
+
+      "You might have used the bell," he says drily, unlatching the gate.
+
+    choices:
+      - text: "Apologise charmingly and introduce yourself."
+        next: entrance_hall
+        effects:
+          - increment: { butler_trust: 1 }
+
+      - text: "Laugh it off and stride past him."
+        next: entrance_hall
+        effects:
+          - decrement: { reputation: 1 }
+
+  # ── Sneak survey ───────────────────────────────────────────────────────────
+  sneak_survey:
+    title: "The Perimeter Wall"
+    music: music/arrival_ambient.mp3
+    text: |
+      You circle the manor's outer wall in the deepening dark, fingers
+      trailing cold stone. Around the east wing you find what you need:
+      an ivy-clad section where the mortar has crumbled between the courses.
+
+      It is an undignified scramble, but three minutes later you drop silently
+      into the kitchen garden on the other side.
+
+      The garden is empty. The kitchen door stands ajar, spilling warm light
+      and the smell of bread onto the flagstones.
+
+    choices:
+      - text: "Slip inside through the kitchen door."
+        next: entrance_hall_sneak
+        effects:
+          - set: { snuck_in: true }
+          - increment: { cunning: 1 }
+
+      - text: "Reconsider — head back and ring the bell instead."
+        next: announce_arrival
+        effects:
+          - decrement: { cunning: 1 }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ACT II — INSIDE THE MANOR
+  # ────────────────────────────────────────────────────────────────────────────
+
+  entrance_hall:
+    title: "The Entrance Hall"
+    music: music/manor_interior.mp3
+    sfx: sfx/door_open.wav
+    text: |
+      The entrance hall is a cathedral of dark wood and moth-eaten
+      velvet. Trophy heads glare from the walls; suits of armour stand
+      at parade rest. A chandelier hangs overhead — only half its candles lit.
+
+      Reginald closes the door and clasps his hands.
+
+      "Lord Hargrove is engaged this evening. However, I may be able
+      to help you, if you will tell me the true nature of your business."
+
+      He waits. His patience seems inexhaustible.
+
+    choices:
+      - text: "Tell him the truth: you are here for the Forgotten Key."
+        next: reginald_conversation
+        effects:
+          - increment: { butler_trust: 2 }
+
+      - text: "Give him a vague answer and ask to look around."
+        next: reginald_conversation
+        effects:
+          - decrement: { butler_trust: 1 }
+
+      - text: "Ask him about the household staff."
+        next: reginald_conversation
+        effects:
+          - increment: { butler_trust: 1 }
+
+  entrance_hall_sneak:
+    title: "The Kitchen"
+    music: music/manor_interior.mp3
+    sfx: sfx/door_creak.wav
+    text: |
+      The kitchen smells of mutton and coal. A scullery maid dozes
+      by the range. You hold your breath and ghost past her, through
+      a green baize door — and find yourself in the back of the
+      entrance hall.
+
+      You are inside Ravenstone Manor, uninvited. The grand hall
+      stretches before you, empty for now.
+
+    choices:
+      - text: "Explore the manor while no one is watching."
+        next: manor_exploration
+        effects:
+          - increment: { cunning: 1 }
+
+      - text: "Seek out the butler and present yourself honestly."
+        next: reginald_conversation
+        effects:
+          - set: { snuck_in: false }
+          - increment: { reputation: 1 }
+
+  # ── Butler conversation ────────────────────────────────────────────────────
+  reginald_conversation:
+    title: "Reginald"
+    music: music/manor_interior.mp3
+    text: |
+      Reginald listens carefully, then folds his hands behind his back.
+
+      "The Forgotten Key," he says, as though tasting the words.
+      "Lord Hargrove... acquired it some months ago. He has been most
+      reluctant to discuss how."
+
+      His eyes move briefly to the stairs, then back to you.
+
+      "I can offer you tea in the drawing room — or I could look the
+      other way while you explore the west wing. The library, in
+      particular, may prove illuminating. There is also a matter of
+      the old puzzle room on the first floor — the key to it was lost
+      years ago, but I noticed Lord Hargrove carried one recently."
+
+      He pauses. "I trust you are a person of discretion."
+
+    choices:
+      - text: "Slip Reginald some coin to buy his full co-operation."
+        next: bribe_reginald
+        # Condition: you must have enough coin to bribe (uses numeric gt)
+        conditions:
+          - require: { coins: { gte: 8 } }
+        effects:
+          - decrement: { coins: 8 }
+          - set: { bribed_reginald: true }
+          - increment: { butler_trust: 3 }
+
+      - text: "Charm him with flattery about his obvious competence."
+        next: reginald_charmed
+        # Requires charisma >= 1
+        conditions:
+          - require: { charisma: { gte: 1 } }
+        effects:
+          - increment: { butler_trust: 2 }
+          - increment: { charisma: 1 }
+
+      - text: "Press him hard — you need that key tonight."
+        next: reginald_pressured
+        # Only if cunning >= 2 can you do this without losing trust
+        conditions:
+          - require: { cunning: { gte: 2 } }
+        effects:
+          - increment: { butler_trust: 1 }
+
+      - text: "Press him — even if you lack subtlety."
+        next: reginald_pressured_fail
+        # Shown when cunning < 2 (using lte)
+        conditions:
+          - require: { cunning: { lte: 1 } }
+        effects:
+          - decrement: { butler_trust: 2 }
+          - decrement: { reputation: 1 }
+
+      - text: "Simply thank him and ask to use the library."
+        next: manor_exploration
+        effects:
+          - increment: { butler_trust: 1 }
+
+  bribe_reginald:
+    title: "A Gentleman's Agreement"
+    music: music/manor_interior.mp3
+    text: |
+      You extract eight shillings from your inside pocket and set them
+      on the hall table with a soft click.
+
+      Reginald regards them for three full seconds.
+
+      "I shall be in the kitchen until midnight," he says at last,
+      pocketing the coin with the efficiency of long practice.
+      "The study is on the second floor. Lord Hargrove keeps his
+      valuables in the escritoire by the window. And the east cellar—"
+      he lowers his voice — "has not been locked since Tuesday."
+
+    choices:
+      - text: "Head to the manor's various rooms."
+        next: manor_exploration
+
+  reginald_charmed:
+    title: "Winning Reginald Over"
+    music: music/manor_interior.mp3
+    text: |
+      You deploy your warmest smile and tell Reginald, quite sincerely,
+      that the manor would grind to a halt without him. His thin lips
+      twitch — the closest he comes to a smile.
+
+      "The library is at the end of the west corridor," he says quietly.
+      "Third volume of Debrett's Peerage on the left shelf —
+      it is not what it appears."
+
+      He turns and walks towards the kitchen, pausing once to straighten
+      a portrait without looking at it.
+
+    choices:
+      - text: "Head into the manor's rooms."
+        next: manor_exploration
+
+  reginald_pressured:
+    title: "Reading the Room"
+    music: music/manor_interior.mp3
+    text: |
+      You lean slightly forward — just enough — and keep your voice level
+      as you explain what will happen if the Key is not recovered.
+
+      Reginald absorbs the implication. He is not a man who frightens,
+      but he is a man who calculates.
+
+      "The cellar door is unlocked. The library has what you need.
+      I will be unavailable to notice anything untoward." A pause.
+      "Do not make me regret this."
+
+    choices:
+      - text: "Proceed into the manor."
+        next: manor_exploration
+
+  reginald_pressured_fail:
+    title: "A Clumsy Threat"
+    music: music/manor_interior.mp3
+    text: |
+      You attempt to press Reginald, but your words come out blunt
+      and graceless. His expression does not change — it merely
+      becomes more settled, like a portcullis dropping.
+
+      "I think," he says, "you had better restrict yourself
+      to the drawing room while I inform Lord Hargrove of your arrival."
+
+    choices:
+      - text: "Agree and wait in the drawing room... then slip away."
+        next: manor_exploration
+        effects:
+          - increment: { cunning: 1 }
+
+      - text: "Apologise and ask to start over."
+        next: reginald_conversation
+        effects:
+          - increment: { reputation: 1 }
+          - increment: { butler_trust: 1 }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ACT III — EXPLORING THE MANOR
+  # ────────────────────────────────────────────────────────────────────────────
+
+  manor_exploration:
+    title: "The West Wing"
+    music: music/manor_exploration.mp3
+    text: |
+      The west wing of Ravenstone Manor is a warren of dim corridors
+      and half-lit rooms. Portraits of stern ancestors watch your every step.
+      Your footsteps are swallowed by thick Persian carpets.
+
+      Three doors present themselves:
+        — The Library, its door ajar, warm lamplight within.
+        — The Servants' Hall, from which a smell of candle-wax drifts.
+        — The First-Floor Landing, with a locked door marked PUZZLE ROOM.
+
+    choices:
+      - text: "Enter the library."
+        next: library
+
+      - text: "Search the servants' hall."
+        next: servants_hall
+
+      - text: "Attempt to open the locked puzzle room door."
+        next: puzzle_room_locked
+
+      - text: "Go upstairs and seek out Lord Hargrove's study."
+        next: lords_study
+
+      - text: "Head to the east wing (the cellar entrance)."
+        next: cellar_entrance
+
+  # ── Library ────────────────────────────────────────────────────────────────
+  library:
+    title: "The Library"
+    music: music/library_quiet.mp3
+    sfx: sfx/bookshelf.wav
+    text: |
+      Floor-to-ceiling shelves of leather-bound volumes. The room smells
+      of cedar oil and old paper. A fire, banked low, ticks in the grate.
+
+      On the reading table you notice a surveyor's roll — a hand-drawn
+      floor plan of Ravenstone Manor. Someone has marked a room in red ink
+      at the eastern end of the cellar: VAULT.
+
+      On the left shelf, exactly as Reginald described, the third volume
+      of Debrett's Peerage is a false book — a concealed drawer.
+
+    choices:
+      - text: "Take the manor map."
+        next: library_took_map
+        # Only if you don't already have it (boolean eq false check)
+        conditions:
+          - require: { has_manor_map: false }
+        effects:
+          - set: { has_manor_map: true }
+          - increment: { cunning: 1 }
+
+      - text: "Open the secret drawer."
+        next: library_secret_drawer
+        # Reginald must have hinted about this (bribed or charmed)
+        conditions:
+          - require: { bribed_reginald: true }
+
+      - text: "Open the secret drawer anyway — you're curious."
+        next: library_secret_drawer
+        conditions:
+          - require: { bribed_reginald: false }
+          - require: { cunning: { gte: 1 } }
+
+      - text: "Return to the corridor."
+        next: manor_exploration
+
+  library_took_map:
+    title: "The Library"
+    music: music/library_quiet.mp3
+    text: |
+      You fold the surveyor's roll carefully and tuck it inside your coat.
+      The red-marked vault could be the Key's resting place.
+
+      You note one more thing: the vault's location is accessible only
+      through the cellar — and from there, only if you can see.
+
+    choices:
+      - text: "Continue exploring."
+        next: manor_exploration
+
+  library_secret_drawer:
+    title: "The Concealed Drawer"
+    music: music/library_quiet.mp3
+    sfx: sfx/drawer_open.wav
+    text: |
+      The false spine clicks; the drawer springs open. Inside, nestled
+      in green velvet, is a skeleton key — a slender master-key that
+      Reginald (or someone before him) has kept for emergencies.
+
+    choices:
+      - text: "Take the skeleton key."
+        next: manor_exploration
+        conditions:
+          - require: { has_skeleton_key: false }
+        effects:
+          - set: { has_skeleton_key: true }
+
+      - text: "Leave it — you won't stoop to outright theft."
+        next: manor_exploration
+        effects:
+          - increment: { reputation: 1 }
+
+  # ── Servants' Hall ─────────────────────────────────────────────────────────
+  servants_hall:
+    title: "The Servants' Hall"
+    music: music/manor_exploration.mp3
+    text: |
+      A long, low-ceilinged room with a scarred refectory table and
+      a row of hooks bearing aprons and oilskins. On a shelf above the
+      fireplace, among jars of boot-blacking and chamois leather,
+      sits an oil lantern — full and trimmed.
+
+    choices:
+      - text: "Take the lantern."
+        next: servants_hall_lantern
+        conditions:
+          - require: { has_lantern: false }
+        effects:
+          - set: { has_lantern: true }
+          - increment: { cunning: 1 }
+
+      - text: "You already have a light — search for something else."
+        next: servants_hall_search
+        conditions:
+          - require: { has_lantern: true }
+
+      - text: "Return to the corridor."
+        next: manor_exploration
+
+  servants_hall_lantern:
+    title: "The Lantern"
+    music: music/manor_exploration.mp3
+    sfx: sfx/item_pickup.wav
+    text: |
+      You lift the lantern, confirm the wick is dry, and tuck it under
+      your arm. The oil sloshes gently. With this, even the darkest
+      corner of the manor is accessible.
+
+    choices:
+      - text: "Return to the corridor."
+        next: manor_exploration
+
+  servants_hall_search:
+    title: "Searching Further"
+    music: music/manor_exploration.mp3
+    text: |
+      A quick search of the servants' hall turns up little of interest
+      beyond a ledger of household accounts — and one entry that catches
+      your eye: three weeks ago, Lord Hargrove paid a locksmith named
+      Crabbet an extraordinary sum for an unspecified commission.
+
+    choices:
+      - text: "Note this and return to the corridor."
+        next: manor_exploration
+        effects:
+          - increment: { cunning: 1 }
+
+  # ── Puzzle Room ────────────────────────────────────────────────────────────
+  puzzle_room_locked:
+    title: "The Puzzle Room"
+    music: music/manor_exploration.mp3
+    text: |
+      The door to the puzzle room is indeed locked — a heavy mortise
+      lock, no sign of the key.
+
+      You study it for a moment. The room is Lord Hargrove's private
+      amusement; you have heard he collects mechanical curiosities.
+
+    choices:
+      - text: "Pick the lock with the skeleton key."
+        next: puzzle_room
+        conditions:
+          - require: { has_skeleton_key: true }
+
+      - text: "Try to pick it with a hairpin — you've done it before."
+        next: puzzle_room
+        conditions:
+          - require: { cunning: { gte: 3 } }
+        effects:
+          - increment: { cunning: 1 }
+
+      - text: "Leave it and look elsewhere."
+        next: manor_exploration
+
+  puzzle_room:
+    title: "The Puzzle Room"
+    music: music/puzzle_room.mp3
+    sfx: sfx/door_unlock.wav
+    text: |
+      The room is a clockmaker's fever-dream: mechanical birds in
+      glass cases, a brass orrery, clocks of every size. And on the
+      central table, a locked iron box with a combination dial.
+
+      Beside it sits a note in Lord Hargrove's hand:
+      "The combination is the year of the family's founding, reversed."
+
+      A framed crest on the wall gives the founding year: 1643.
+
+    choices:
+      - text: "Solve it: enter 3461."
+        next: puzzle_solved
+        conditions:
+          - require: { cracked_puzzle: false }
+        effects:
+          - set: { cracked_puzzle: true }
+
+      - text: "You already opened it — you know what's inside."
+        next: puzzle_already_solved
+        conditions:
+          - require: { cracked_puzzle: true }
+
+      - text: "This feels too risky — leave the room."
+        next: manor_exploration
+
+  puzzle_solved:
+    title: "The Iron Box"
+    music: music/puzzle_room.mp3
+    sfx: sfx/lock_click.wav
+    text: |
+      3 — 4 — 6 — 1.
+
+      The dial clicks. The box springs open with a sound like a
+      small sigh. Inside, cushioned in black velvet, is a folded
+      note and a small brass key — not the Forgotten Key, but
+      it bears a tag: EAST CELLAR VAULT.
+
+    choices:
+      - text: "Take the vault key and the note."
+        next: manor_exploration
+        effects:
+          - set: { has_skeleton_key: true }
+          - increment: { reputation: 1 }
+          - increment: { cunning: 1 }
+
+  puzzle_already_solved:
+    title: "The Puzzle Room"
+    music: music/puzzle_room.mp3
+    text: |
+      The iron box stands open as you left it. Nothing left to discover here.
+
+    choices:
+      - text: "Return to the corridor."
+        next: manor_exploration
+
+  # ── Lord's Study ───────────────────────────────────────────────────────────
+  lords_study:
+    title: "Lord Hargrove's Study"
+    music: music/study.mp3
+    sfx: sfx/footstep_creak.wav
+    text: |
+      The study is warm — a vigorous fire, walls lined with hunting prints,
+      a massive mahogany desk. And behind the desk, Lord Hargrove himself.
+
+      He is a broad, florid man of sixty, wearing a smoking jacket and
+      an expression of careful neutrality. He was expecting you, or
+      someone like you, eventually.
+
+      "Detective," he says, without looking up from his papers.
+      "I trust Reginald showed you in. Sit."
+
+    choices:
+      - text: "Sit and address him directly: you want the Forgotten Key."
+        next: lord_confrontation
+        effects:
+          - set: { confronted_lord: true }
+          - increment: { reputation: 1 }
+
+      - text: "Flatter him — admire the room before getting to business."
+        next: lord_flattered
+        conditions:
+          - require: { charisma: { gte: 1 } }
+        effects:
+          - set: { confronted_lord: true }
+          - increment: { lord_favor: 2 }
+          - increment: { charisma: 1 }
+
+      - text: "Claim you are simply touring the house."
+        next: lord_suspicious
+        conditions:
+          - require: { snuck_in: false }
+        effects:
+          - decrement: { lord_favor: 1 }
+
+      - text: "You snuck in — bluffing would be too dangerous. Retreat."
+        next: manor_exploration
+        conditions:
+          - require: { snuck_in: true }
+
+  lord_flattered:
+    title: "Lord Hargrove"
+    music: music/study.mp3
+    text: |
+      You admire the paintings — genuinely; they are fine — and inquire
+      about his time in India. The topic warms him considerably.
+
+      "Yes, yes — the Bengal lancers. Now there were men."
+
+      After a comfortable twenty minutes he is in distinctly better
+      humour. Eventually he sets down his pipe.
+
+      "Now then. You didn't come all this way to discuss lancers.
+      What is it you actually want?"
+
+    choices:
+      - text: "Tell him about the Forgotten Key."
+        next: lord_confrontation
+
+  lord_suspicious:
+    title: "Lord Hargrove — Suspicious"
+    music: music/study.mp3
+    text: |
+      Lord Hargrove gives you a long, flat look.
+
+      "Touring." He repeats it without inflection. "Reginald doesn't
+      give house tours. Who sent you?"
+
+    choices:
+      - text: "Come clean — tell him the truth about the Key."
+        next: lord_confrontation
+        effects:
+          - increment: { reputation: 1 }
+          - decrement: { lord_favor: 1 }
+
+      - text: "Stonewall him and slip away before he calls Reginald."
+        next: manor_exploration
+        effects:
+          - increment: { cunning: 1 }
+          - decrement: { lord_favor: 2 }
+
+  lord_confrontation:
+    title: "Confronting Lord Hargrove"
+    music: music/study.mp3
+    text: |
+      You lay it out plainly: the Blackwood family, their claim to the
+      Forgotten Key, and your commission to retrieve it.
+
+      Lord Hargrove listens without interrupting. When you finish,
+      he refills his pipe and is quiet for a long moment.
+
+      "The Key," he says at last, "is in my vault. I acquired it
+      legally — the former Earl sold it to me to clear a gambling debt.
+      I have the receipt." He pauses. "However... I am not an unreasonable
+      man. Make me an offer."
+
+    choices:
+      - text: "Offer him coin — fifteen shillings."
+        next: lord_deal_coin
+        conditions:
+          - require: { coins: { gte: 15 } }
+        effects:
+          - decrement: { coins: 15 }
+          - increment: { lord_favor: 3 }
+
+      - text: "Appeal to his honour — returning the Key is the right thing."
+        next: lord_deal_honour
+        conditions:
+          - require: { reputation: { gte: 3 } }
+        effects:
+          - increment: { lord_favor: 4 }
+          - increment: { reputation: 1 }
+
+      - text: "Appeal to honour (you lack reputation, but try anyway)."
+        next: lord_deal_honour_fail
+        conditions:
+          - require: { reputation: { lte: 2 } }
+        effects:
+          - decrement: { lord_favor: 1 }
+
+      - text: "Threaten to expose his acquisition in the press."
+        next: lord_threat
+        conditions:
+          - require: { cunning: { gte: 3 } }
+        effects:
+          - decrement: { lord_favor: 3 }
+          - increment: { cunning: 1 }
+
+  lord_deal_coin:
+    title: "A Transaction"
+    music: music/study.mp3
+    text: |
+      Lord Hargrove counts the shillings with practiced speed.
+
+      "Acceptable." He opens his desk drawer and produces a small
+      brass key. "The vault is in the east cellar. Reginald will
+      show you out — with the Key — once you have collected it."
+
+    choices:
+      - text: "Go to the east cellar vault."
+        next: cellar_entrance
+        effects:
+          - increment: { lord_favor: 1 }
+
+  lord_deal_honour:
+    title: "The Right Thing"
+    music: music/study.mp3
+    text: |
+      Lord Hargrove is silent for an uncomfortably long time.
+
+      "I have sons," he says finally. "I know what it is to
+      feel a family's heritage slip away." He stands and extends
+      his hand. "The vault key is in my escritoire. Take the
+      Forgotten Key — with my compliments — and tell the Blackwoods
+      I ask nothing in return."
+
+    choices:
+      - text: "Thank him and retrieve the Key."
+        next: cellar_entrance
+        effects:
+          - increment: { lord_favor: 2 }
+          - increment: { reputation: 2 }
+
+  lord_deal_honour_fail:
+    title: "An Unconvincing Appeal"
+    music: music/study.mp3
+    text: |
+      Your appeal to his honour falls flat. Lord Hargrove leans back
+      and steeples his fingers.
+
+      "You come into my home — I'm not entirely sure how —
+      and lecture me about honour. Remarkable." He rings a small bell.
+      "I think this conversation is over."
+
+    choices:
+      - text: "Leave the study before Reginald arrives."
+        next: manor_exploration
+        effects:
+          - decrement: { reputation: 1 }
+
+  lord_threat:
+    title: "The Implied Threat"
+    music: music/study.mp3
+    text: |
+      You speak quietly and clearly. Lord Hargrove's complexion
+      darkens to an impressive shade of crimson — but he is not a
+      foolish man. He knows the difference between a bluff and a
+      genuine threat, and yours is genuine.
+
+      "Get out of my study," he says at last. "And take the damned
+      key. The vault is in the east cellar. If I ever see you again—"
+
+      He lets the sentence hang.
+
+    choices:
+      - text: "Take your leave and head for the cellar."
+        next: cellar_entrance
+        effects:
+          - increment: { cunning: 1 }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ACT IV — THE CELLAR & VAULT
+  # ────────────────────────────────────────────────────────────────────────────
+
+  cellar_entrance:
+    title: "The East Cellar"
+    music: music/cellar_ambient.mp3
+    sfx: sfx/footstep_stone.wav
+    text: |
+      A door beneath the staircase opens onto stone steps that descend
+      into absolute darkness. Cold air rises from below, smelling of
+      old wine and damp limestone.
+
+    choices:
+      - text: "Descend with your lantern lit."
+        next: cellar
+        conditions:
+          - require: { has_lantern: true }
+
+      - text: "Attempt to find the vault by feel alone."
+        next: cellar_dark
+        conditions:
+          - require: { has_lantern: false }
+          - require: { cunning: { gte: 2 } }
+        effects:
+          - increment: { cunning: 1 }
+
+      - text: "You cannot go down there without a light."
+        next: manor_exploration
+        conditions:
+          - require: { has_lantern: false }
+          - require: { cunning: { lte: 1 } }
+
+  cellar:
+    title: "The Wine Cellar"
+    music: music/cellar_ambient.mp3
+    text: |
+      Your lantern pushes back the dark to reveal a vast wine cellar:
+      hundreds of dusty bottles racked floor-to-ceiling, and at the far end,
+      an iron door set into the limestone — unmistakably a vault.
+
+      The map confirms it. The Forgotten Key is behind that door.
+
+    choices:
+      - text: "Use the skeleton key to open the vault."
+        next: vault
+        conditions:
+          - require: { has_skeleton_key: true }
+
+      - text: "Use the vault key from the puzzle box."
+        next: vault
+        conditions:
+          - require: { cracked_puzzle: true }
+
+      - text: "Lord Hargrove gave you the go-ahead — try the handle."
+        next: vault
+        conditions:
+          - require: { lord_favor: { gte: 1 } }
+
+      - text: "You have no key — search the cellar for another way."
+        next: cellar_search
+        conditions:
+          - require: { has_skeleton_key: false }
+          - require: { cracked_puzzle: false }
+          - require: { lord_favor: { lte: 0 } }
+
+  cellar_dark:
+    title: "In the Dark"
+    music: music/cellar_ambient.mp3
+    sfx: sfx/footstep_stone.wav
+    text: |
+      You feel your way down the steps, one hand on the cold wall.
+      It is slow, nerve-wracking work — but you locate the vault door
+      by touch, its iron fittings unmistakable.
+
+    choices:
+      - text: "Use the skeleton key to open it."
+        next: vault
+        conditions:
+          - require: { has_skeleton_key: true }
+
+      - text: "Try the handle — Hargrove may have left it unlocked."
+        next: vault
+        conditions:
+          - require: { lord_favor: { gte: 1 } }
+
+      - text: "You cannot open it in the dark. Return upstairs for light."
+        next: manor_exploration
+
+  cellar_search:
+    title: "Searching the Cellar"
+    music: music/cellar_ambient.mp3
+    text: |
+      Behind the third rack of wine bottles you find, of all things,
+      a key hanging on a hook — a duplicate vault key, presumably
+      forgotten by whoever hid it.
+
+      It is a fortunate find.
+
+    choices:
+      - text: "Take the key and open the vault."
+        next: vault
+        effects:
+          - set: { has_skeleton_key: true }
+          - increment: { cunning: 1 }
+
+  vault:
+    title: "The Hidden Vault"
+    music: music/vault.mp3
+    sfx: sfx/vault_open.wav
+    text: |
+      The vault door swings open with a groan that sounds like something
+      long-imprisoned finally exhaling.
+
+      Inside: a small chamber, shelves holding document boxes, a
+      strongbox, and — on a velvet cushion in the centre of a
+      stone plinth — the Forgotten Key.
+
+      It is beautiful. Six inches of solid gold, chased with the
+      Blackwood crest — a raven over a castle. It catches your
+      lantern-light and throws it back a dozen times over.
+
+    choices:
+      - text: "Take the Forgotten Key."
+        next: take_key
+        conditions:
+          - require: { has_the_key: false }
+        effects:
+          - set: { has_the_key: true }
+          - set: { visited_vault: true }
+          - increment: { reputation: 2 }
+
+      - text: "You already have the Key — time to leave."
+        next: exit_manor
+        conditions:
+          - require: { has_the_key: true }
+
+  take_key:
+    title: "The Forgotten Key"
+    music: music/vault.mp3
+    sfx: sfx/item_pickup.wav
+    text: |
+      You lift the Key from its cushion. It is heavier than it looks —
+      solid gold always is.
+
+      Mission accomplished. Now you need to leave Ravenstone Manor
+      without incident — or with as much dignity as you can manage,
+      depending on how the evening has gone.
+
+    choices:
+      - text: "Make your way to the exit."
+        next: exit_manor
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ACT V — THE EXIT & ENDINGS
+  # ────────────────────────────────────────────────────────────────────────────
+
+  exit_manor:
+    title: "The Exit"
+    music: music/exit_ambient.mp3
+    text: |
+      You climb the cellar stairs and cross the entrance hall towards
+      the front door. The hall is dim and quiet.
+
+      Reginald is waiting by the door.
+
+      His expression is unreadable. He holds your hat and coat.
+
+    choices:
+      - text: "Walk out with your head high — you have every right."
+        next: ending_triumphant
+        # Best ending: has key + high reputation + lord in good standing
+        conditions:
+          - require: { has_the_key: true }
+          - require: { reputation: { gte: 3 } }
+          - require: { lord_favor: { gte: 1 } }
+
+      - text: "Accept your coat and depart quickly."
+        next: ending_professional
+        # Middle ending: has key, decent standing
+        conditions:
+          - require: { has_the_key: true }
+          - require: { reputation: { gte: 0 } }
+
+      - text: "Slip past Reginald and out into the night."
+        next: ending_shadow
+        # Cunning ending: has key, snuck around
+        conditions:
+          - require: { has_the_key: true }
+          - require: { cunning: { gte: 3 } }
+
+      - text: "You do not have the Key — you've failed."
+        next: ending_empty_handed
+        conditions:
+          - require: { has_the_key: false }
+          - require: { reputation: { gte: 0 } }
+
+      - text: "Reginald is blocking the door — and he looks angry."
+        next: ending_caught
+        # Worst ending: no key, low reputation/trust
+        conditions:
+          - require: { has_the_key: false }
+          - require: { reputation: { lt: 0 } }
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ENDINGS
+  # ────────────────────────────────────────────────────────────────────────────
+
+  ending_triumphant:
+    title: "A Triumphant Return"
+    music: music/ending_good.mp3
+    sfx: sfx/success_chime.wav
+    # ending: true means no more choices — the story is over.
+    ending: true
+    text: |
+      Reginald holds the door open with something that might, in another
+      man, be called a smile.
+
+      "Lord Hargrove asked me to convey his regards," he says quietly,
+      "and to say that the Blackwood family may call upon him at any time."
+
+      You step out into the night air. Above the moors, impossibly,
+      stars are breaking through the cloud. The Forgotten Key is warm
+      in your hand — warmer than gold should be.
+
+      You did it. The family heirloom is recovered. A fair price was
+      paid, trust was earned, and Ravenstone Manor holds no ill will
+      toward you.
+
+      ══════════════════════════════════════════════
+      ENDING: THE PERFECT RESOLUTION
+      Reputation earned. Alliances built. A job well done.
+      ══════════════════════════════════════════════
+
+  ending_professional:
+    title: "A Clean Conclusion"
+    music: music/ending_good.mp3
+    ending: true
+    text: |
+      Reginald hands you your hat without ceremony. You take it, tuck
+      the Forgotten Key inside your coat, and walk out into the cold night.
+
+      It was not elegant. There were moments you would rather forget.
+      But you have the Key — and that is what the Blackwoods are paying
+      you for.
+
+      The cab is where you left it. The driver eyes your muddy boots
+      but says nothing.
+
+      ══════════════════════════════════════════════
+      ENDING: MISSION ACCOMPLISHED
+      The Key is recovered. The manner of its recovery is best
+      left unexamined.
+      ══════════════════════════════════════════════
+
+  ending_shadow:
+    title: "Vanishing Act"
+    music: music/ending_neutral.mp3
+    ending: true
+    text: |
+      You step lightly to the left, find the gap beside Reginald's arm,
+      and are through the door before he can react. Behind you, his voice
+      floats out into the dark — dignified, reproving, and entirely futile.
+
+      You melt into the fog. The Forgotten Key rides in your inside pocket.
+
+      You have it. Lord Hargrove will recover from his indignation.
+      Reginald will never quite forgive you, but you suspect he secretly
+      respects a professional.
+
+      ══════════════════════════════════════════════
+      ENDING: THE GHOST
+      In and out, and no one can prove a thing.
+      ══════════════════════════════════════════════
+
+  ending_empty_handed:
+    title: "A Dignified Withdrawal"
+    music: music/ending_neutral.mp3
+    ending: true
+    text: |
+      Reginald takes your hat from its hook and proffers it.
+
+      "I trust you found everything in order," he says. It is not
+      quite a question.
+
+      You did not find the Key. Perhaps Lord Hargrove's vault was
+      too well-hidden, or you ran short of time. Perhaps there
+      will be another opportunity.
+
+      The moor air is cold and clean. You make a note of everything
+      you have learned tonight — and begin planning your return.
+
+      ══════════════════════════════════════════════
+      ENDING: UNFINISHED BUSINESS
+      The Key remains at Ravenstone. But you know more than you did.
+      ══════════════════════════════════════════════
+
+  ending_caught:
+    title: "The Long Night"
+    music: music/ending_bad.mp3
+    sfx: sfx/door_lock.wav
+    ending: true
+    text: |
+      Reginald does not move from the door.
+
+      "I am afraid," he says, "that Lord Hargrove has requested that
+      you wait in the drawing room. The constabulary has been sent for."
+
+      There is no point in running. There are dogs, apparently.
+      You heard them barking earlier and assumed they were simply
+      enthusiastic. You were mistaken.
+
+      You spend the next three hours explaining yourself to a
+      remarkably patient sergeant from the county constabulary.
+      The Forgotten Key remains in Lord Hargrove's vault.
+
+      Your reputation will take some time to recover.
+
+      ══════════════════════════════════════════════
+      ENDING: DETAINED
+      The authorities are involved. This is not ideal.
+      ══════════════════════════════════════════════

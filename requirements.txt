@@ -1,0 +1,5 @@
+customtkinter>=5.2.2
+PyYAML>=6.0
+pygame>=2.5.2
+Pillow>=10.0.0
+pyinstaller>=6.0
