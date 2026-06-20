@@ -1,3 +1,8 @@
 __pycache__/
 build/
 dist/saves/
+engine/__pycache__
+saves/
+ui/__pycache__
+ui/components/__pycache__
+ui/screens/__pycache__
