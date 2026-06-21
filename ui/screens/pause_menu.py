@@ -45,7 +45,7 @@ class PauseMenuScreen(ctk.CTkFrame):
             corner_radius=16,
             border_width=1,
             border_color=c["border_accent"],
-            width=460,
+            width=720,
         )
         self._panel.place(relx=0.5, rely=0.5, anchor="center")
 
@@ -59,7 +59,7 @@ class PauseMenuScreen(ctk.CTkFrame):
         self._title_lbl.pack(pady=(28, 4))
 
         ctk.CTkFrame(
-            self._panel, fg_color=c["accent"], height=2, width=300, corner_radius=1
+            self._panel, fg_color=c["accent"], height=2, width=550, corner_radius=1
         ).pack(pady=(0, 18))
 
         # ---- Save slots ----
@@ -147,17 +147,19 @@ class PauseMenuScreen(ctk.CTkFrame):
             corner_radius=10,
             border_width=1,
             border_color=c["border"],
-            height=58,
+            height=68,
         )
         row.pack(fill="x", pady=4)
         row.pack_propagate(False)
 
         inner = ctk.CTkFrame(row, fg_color="transparent")
         inner.pack(fill="both", expand=True, padx=10, pady=6)
+        inner.grid_columnconfigure(0, weight=1)
+        inner.grid_columnconfigure(1, minsize=240)
 
         # Slot label + info
         label_frame = ctk.CTkFrame(inner, fg_color="transparent")
-        label_frame.pack(side="left", fill="y")
+        label_frame.grid(row=0, column=0, sticky="nsew")
 
         ctk.CTkLabel(
             label_frame,
@@ -189,10 +191,10 @@ class PauseMenuScreen(ctk.CTkFrame):
 
         # Buttons
         btn_frame = ctk.CTkFrame(inner, fg_color="transparent")
-        btn_frame.pack(side="right", fill="y")
+        btn_frame.grid(row=0, column=1, sticky="e", padx=(12, 0))
 
         small_btn = dict(
-            width=72, height=30,
+            width=116, height=34,
             font=("Segoe UI", 11, "bold"),
             corner_radius=15,
         )
@@ -206,7 +208,7 @@ class PauseMenuScreen(ctk.CTkFrame):
                 text_color="#ffffff",
                 command=lambda s=slot: self._on_save(s),
                 **small_btn,
-            ).pack(side="left", padx=(0, 4))
+            ).pack(side="left", padx=(0, 4), pady=(11, 11))
 
         if info:
             ctk.CTkButton(
@@ -217,7 +219,7 @@ class PauseMenuScreen(ctk.CTkFrame):
                 text_color="#ffffff",
                 command=lambda s=slot, raw=info.raw: self._on_load(s, raw),
                 **small_btn,
-            ).pack(side="left", padx=(0, 4))
+            ).pack(side="left", padx=(0, 4), pady=(11, 11))
 
         return row
 
