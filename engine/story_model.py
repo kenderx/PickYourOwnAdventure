@@ -108,7 +108,8 @@ class StoryNode:
     title: str
     text: str
     choices: list[Choice] = field(default_factory=list)
-    background: Optional[str] = None   # absolute path to image file
+    background: Optional[str] = None   # absolute path to background image file
+    panel_image: Optional[str] = None  # absolute path to panel image file
     music: Optional[str] = None        # absolute path to music file
     sfx: Optional[str] = None          # absolute path to node-entry SFX
     is_ending: bool = False            # if True, no more choices offered

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import yaml
 
@@ -128,6 +128,7 @@ class StoryLoader:
                 text=(node_data.get("text") or "").strip(),
                 choices=choices,
                 background=self._resolve_asset(node_data.get("background"), story_dir),
+                panel_image=self._resolve_asset(node_data.get("panel_image"), story_dir),
                 music=self._resolve_asset(node_data.get("music"), story_dir),
                 sfx=self._resolve_asset(node_data.get("sfx"), story_dir),
                 is_ending=bool(node_data.get("ending", False)),

@@ -124,6 +124,9 @@ class GameScreen(ctk.CTkFrame):
         if self.app.settings.text_speed >= 100:
             self._passage.skip_animation()
 
+        # Panel image
+        self._passage.set_panel_image(node.panel_image)
+
     # ------------------------------------------------------------------
     # Choice handling
     # ------------------------------------------------------------------

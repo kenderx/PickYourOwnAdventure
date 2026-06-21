@@ -9,10 +9,12 @@ The panel exposes:
 """
 from __future__ import annotations
 
+import os
 import tkinter as tk
 from typing import Optional
 
 import customtkinter as ctk
+from PIL import Image, ImageTk
 
 
 class PassagePanel(ctk.CTkFrame):
@@ -37,6 +39,10 @@ class PassagePanel(ctk.CTkFrame):
         self._anim_id: Optional[str] = None  # after() callback id
         self._anim_index: int = 0
         self._on_complete_cb = None           # called when typing finishes
+        self._panel_image_obj = None          # keep reference to prevent GC
+        self._panel_image_path: str | None = None
+        self._bg_image_id: int | None = None
+        self._text_id: int | None = None
 
         self._build()
 
@@ -48,25 +54,41 @@ class PassagePanel(ctk.CTkFrame):
         c = self.app.colors
         s = self.app.settings
 
-        # Scrollable text box
-        self._textbox = ctk.CTkTextbox(
-            self,
-            wrap="word",
-            state="disabled",
-            fg_color=c["bg_panel"],
-            text_color=c["text_primary"],
-            font=(self.app.settings.theme and "Georgia", s.font_size),
-            scrollbar_button_color=c["scrollbar"],
-            scrollbar_button_hover_color=c["accent_hover"],
-            corner_radius=10,
-            border_width=0,
-            activate_scrollbars=True,
-        )
-        self._textbox.pack(fill="both", expand=True, padx=8, pady=8)
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        # Click to skip
-        self._textbox.bind("<Button-1>", lambda e: self.skip_animation())
+        self._canvas = tk.Canvas(
+            self,
+            bg=c["bg_panel"],
+            highlightthickness=0,
+        )
+        self._canvas.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+
+        self._scrollbar = ctk.CTkScrollbar(
+            self,
+            orientation="vertical",
+            command=self._canvas.yview,
+            fg_color=c["bg_panel"],
+            button_color=c["scrollbar"],
+            button_hover_color=c["accent_hover"],
+        )
+        self._scrollbar.grid(row=0, column=1, sticky="ns", pady=8, padx=(0, 8))
+        self._canvas.configure(yscrollcommand=self._scrollbar.set)
+
+        self._text_id = self._canvas.create_text(
+            8,
+            8,
+            anchor="nw",
+            text="",
+            fill=c["text_primary"],
+            font=(self.app.settings.theme and "Georgia", s.font_size),
+            width=max(1, self.winfo_width() - 24),
+        )
+
+        self._canvas.bind("<Configure>", self._on_canvas_configure)
+        self._canvas.bind("<Button-1>", lambda e: self.skip_animation())
         self.bind("<Button-1>", lambda e: self.skip_animation())
+        self._canvas.bind("<MouseWheel>", self._on_mousewheel)
 
     # ------------------------------------------------------------------
     # Public API
@@ -101,18 +123,68 @@ class PassagePanel(ctk.CTkFrame):
         self._full_text = text
         self._set_text(text)
 
+    def set_panel_image(self, image_path: str | None) -> None:
+        """Load and display a panel image behind the text."""
+        self._panel_image_path = image_path
+
+        if not image_path or not os.path.isfile(image_path):
+            if self._bg_image_id is not None:
+                self._canvas.delete(self._bg_image_id)
+                self._bg_image_id = None
+            self._panel_image_obj = None
+            self._canvas.configure(bg=self.app.colors["bg_panel"])
+            self._update_scroll_region()
+            return
+
+        try:
+            self.update_idletasks()
+            canvas_width = self._canvas.winfo_width()
+            canvas_height = self._canvas.winfo_height()
+            if canvas_width <= 1 or canvas_height <= 1:
+                self.after(50, lambda: self.set_panel_image(image_path))
+                return
+
+            pil_image = Image.open(image_path)
+            pil_image = pil_image.resize((canvas_width, canvas_height), Image.Resampling.LANCZOS)
+
+            self._panel_image_obj = ImageTk.PhotoImage(pil_image)
+            if self._bg_image_id is None:
+                self._bg_image_id = self._canvas.create_image(
+                    0,
+                    0,
+                    anchor="nw",
+                    image=self._panel_image_obj,
+                    tags="bg_image",
+                )
+            else:
+                self._canvas.itemconfigure(self._bg_image_id, image=self._panel_image_obj)
+
+            self._canvas.tag_lower(self._bg_image_id)
+            self._canvas.configure(bg=self.app.colors["bg_panel"])
+            self._update_scroll_region()
+        except Exception as e:
+            print(f"Error loading panel image '{image_path}': {e}")
+            if self._bg_image_id is not None:
+                self._canvas.delete(self._bg_image_id)
+                self._bg_image_id = None
+            self._panel_image_obj = None
+            self._canvas.configure(bg=self.app.colors["bg_panel"])
+            self._update_scroll_region()
+
     def apply_theme(self) -> None:
         c = self.app.colors
         self.configure(
             fg_color=c["bg_panel"],
             border_color=c["border"],
         )
-        self._textbox.configure(
-            fg_color=c["bg_panel"],
-            text_color=c["text_primary"],
-            scrollbar_button_color=c["scrollbar"],
-            scrollbar_button_hover_color=c["accent_hover"],
-        )
+        self._canvas.configure(bg=c["bg_panel"])
+        if self._text_id is not None:
+            self._canvas.itemconfigure(
+                self._text_id,
+                fill=c["text_primary"],
+                font=(self.app.settings.theme and "Georgia", self.app.settings.font_size),
+            )
+        self._update_scroll_region()
 
     # ------------------------------------------------------------------
     # Animation internals
@@ -142,13 +214,30 @@ class PassagePanel(ctk.CTkFrame):
             self._anim_id = None
 
     def _set_text(self, text: str) -> None:
-        self._textbox.configure(state="normal")
-        self._textbox.delete("1.0", "end")
-        self._textbox.insert("1.0", text)
-        self._textbox.configure(state="disabled")
-        self._textbox.see("end")
+        if self._text_id is not None:
+            self._canvas.itemconfigure(self._text_id, text=text)
+            self._update_scroll_region()
+            self._canvas.yview_moveto(0.0)
 
     def _clear_textbox(self) -> None:
-        self._textbox.configure(state="normal")
-        self._textbox.delete("1.0", "end")
-        self._textbox.configure(state="disabled")
+        if self._text_id is not None:
+            self._canvas.itemconfigure(self._text_id, text="")
+            self._update_scroll_region()
+
+    def _update_scroll_region(self) -> None:
+        self._canvas.update_idletasks()
+        bbox = self._canvas.bbox("all")
+        if bbox:
+            self._canvas.configure(scrollregion=(0, 0, bbox[2] + 8, bbox[3] + 8))
+
+    def _on_canvas_configure(self, event: tk.Event) -> None:
+        if self._text_id is not None:
+            new_width = max(1, event.width - 16)
+            self._canvas.itemconfigure(self._text_id, width=new_width)
+        if self._panel_image_path:
+            self.set_panel_image(self._panel_image_path)
+        else:
+            self._update_scroll_region()
+
+    def _on_mousewheel(self, event: tk.Event) -> None:
+        self._canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")

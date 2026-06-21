@@ -181,8 +181,8 @@ nodes:
     title: "Ravenstone Manor"
     # Per-node ambient music (file path relative to this story folder).
     # If the file is missing the engine skips it gracefully.
-    music: music/arrival_ambient.mp3
     sfx: sfx/door_open.wav
+    panel_image: images/panel/panel1.png
     text: |
       The hansom cab deposits you on a cobblestone lane as a pewter dusk
       settles over the moors. Before you rises Ravenstone Manor — a hulking
