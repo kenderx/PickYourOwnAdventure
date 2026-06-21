@@ -130,13 +130,12 @@ class GameScreen(ctk.CTkFrame):
 
     def _on_choice(self, choice) -> None:
         """Called when the player taps a choice button."""
+        self._choices.clear()
+
         gs = self.app.game_state
         gs.apply_choice(choice)
 
-        if gs.is_game_over():
-            self._render_node()
-        else:
-            self._render_node()
+        self._render_node()
 
     # ------------------------------------------------------------------
     # Navigation
