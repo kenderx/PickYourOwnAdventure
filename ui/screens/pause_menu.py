@@ -48,7 +48,6 @@ class PauseMenuScreen(ctk.CTkFrame):
             width=460,
         )
         self._panel.place(relx=0.5, rely=0.5, anchor="center")
-        self._panel.pack_propagate(False)
 
         # Title
         self._title_lbl = ctk.CTkLabel(
